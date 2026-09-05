@@ -45,25 +45,3 @@ export const robinhoodTestnet = defineChain({
   },
   testnet: true,
 });
-
-export const SAFE_APP_URL = "https://app.safe.global";
-
-export function safeUrlForChain(chainId: number = ROBINHOOD_CHAIN_ID) {
-  return `${SAFE_APP_URL}/welcome/accounts?chain=${chainId}`;
-}
-
-export function explorerAddressUrl(address: string, chainId = ROBINHOOD_CHAIN_ID) {
-  const base =
-    chainId === ROBINHOOD_TESTNET_CHAIN_ID
-      ? robinhoodTestnet.blockExplorers.default.url
-      : robinhoodChain.blockExplorers.default.url;
-  return `${base}/address/${address}`;
-}
-
-export function explorerTxUrl(hash: string, chainId = ROBINHOOD_CHAIN_ID) {
-  const base =
-    chainId === ROBINHOOD_TESTNET_CHAIN_ID
-      ? robinhoodTestnet.blockExplorers.default.url
-      : robinhoodChain.blockExplorers.default.url;
-  return `${base}/tx/${hash}`;
-}

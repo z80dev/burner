@@ -2,7 +2,8 @@
 
 import Burner from "@arx-research/libburner";
 import type { Address, Hex } from "viem";
-import { robinhoodChain } from "@/lib/chains/robinhood";
+import { base } from "viem/chains";
+import { DEFAULT_CHAIN_KEY, getSupportedChain } from "@/lib/chains";
 
 export type HaloMethod = "webnfc" | "bridge" | "credential";
 
@@ -16,13 +17,13 @@ export type BurnerSession = {
 type HaloExec = (cmd: unknown) => Promise<unknown>;
 
 function createBurner(haloExecCb: HaloExec) {
+  // LibBurner only accepts base/base-sepolia for its subsidized token helpers.
+  // Signing uses asViemAccount() + per-chain viem clients for Eth/Base/Arb/RH.
   return new Burner({
     haloExecCb,
-    // LibBurner only accepts base/base-sepolia for its subsidized token helpers.
-    // We use asViemAccount() + Robinhood RPC for general EVM signing.
     chain: "base",
     chainRpcUrls: {
-      http: [...robinhoodChain.rpcUrls.default.http],
+      http: [...base.rpcUrls.default.http],
     },
   });
 }
@@ -127,7 +128,8 @@ export type SignRequest =
 export async function signWithBurner(
   session: BurnerSession,
   request: SignRequest,
-  pin?: string
+  pin?: string,
+  chainId: number = getSupportedChain(DEFAULT_CHAIN_KEY).chain.id
 ): Promise<Hex | string> {
   if (pin) setBurnerPin(session, pin);
   const account = await getBurnerViemAccount(session);
@@ -164,7 +166,7 @@ export async function signWithBurner(
         ? BigInt(tx.maxPriorityFeePerGas)
         : tx.maxPriorityFeePerGas,
     nonce: typeof tx.nonce === "string" ? Number(tx.nonce) : tx.nonce,
-    chainId: robinhoodChain.id,
+    chainId,
     type: tx.maxFeePerGas ? "eip1559" : undefined,
   } as never);
 

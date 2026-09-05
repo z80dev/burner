@@ -1,6 +1,6 @@
 # RH Burner OS
 
-A BurnerOS-style wallet for [Burner](https://burner.pro) Ethereum hardware cards on **Robinhood Chain**, with WalletConnect so you can use the card as a signer in [Safe](https://app.safe.global).
+A BurnerOS-style wallet for [Burner](https://burner.pro) Ethereum hardware cards on **Ethereum, Base, Arbitrum, and Robinhood Chain**, with WalletConnect so you can use the card as a signer in [Safe](https://app.safe.global).
 
 **Live:** [https://z80.wtf/burner](https://z80.wtf/burner)
 
@@ -9,10 +9,11 @@ Private keys never leave the Burner secure element. Signing uses the same LibBur
 ## Features
 
 - Connect Burner via **phone NFC** (iPhone Safari / Android Chrome) or **HaLo Bridge** (desktop USB reader)
-- View ETH balance and send on **Robinhood Chain** (mainnet `4663` / testnet `46630`)
+- View ETH balance and send on **Ethereum**, **Base**, **Arbitrum**, and **Robinhood Chain** (mainnet `4663` / testnet `46630`)
+- **ENS** forward resolution for send (`vitalik.eth`) and reverse lookup on the connected address
 - **WalletConnect** pairing — paste a `wc:` URI from Safe (or any dApp)
 - Approve session proposals and sign `personal_sign` / typed data / transactions with a card tap + PIN
-- Deep link to Safe with Robinhood Chain selected
+- Deep link to Safe with the selected chain
 
 ## Quick start
 
@@ -66,13 +67,17 @@ npx serve .preview
 # Open http://localhost:3000/burner/
 ```
 
-## Network
+## Networks
 
-| | Mainnet | Testnet |
-|---|---|---|
-| Chain ID | 4663 | 46630 |
-| RPC | `https://rpc.mainnet.chain.robinhood.com` | `https://rpc.testnet.chain.robinhood.com` |
-| Explorer | [Blockscout](https://robinhoodchain.blockscout.com) | [Testnet explorer](https://explorer.testnet.chain.robinhood.com) |
+| Network | Chain ID | RPC | Explorer |
+|---|---|---|---|
+| Ethereum | 1 | `https://ethereum.reth.rs/rpc` | [Etherscan](https://etherscan.io) |
+| Base | 8453 | `https://mainnet.base.org` | [Basescan](https://basescan.org) |
+| Arbitrum One | 42161 | `https://arb1.arbitrum.io/rpc` | [Arbiscan](https://arbiscan.io) |
+| Robinhood Chain | 4663 | `https://rpc.mainnet.chain.robinhood.com` | [Blockscout](https://robinhoodchain.blockscout.com) |
+| Robinhood Testnet | 46630 | `https://rpc.testnet.chain.robinhood.com` | [Testnet explorer](https://explorer.testnet.chain.robinhood.com) |
+
+ENS names are resolved against Ethereum mainnet regardless of the selected send network.
 
 ## Stack
 

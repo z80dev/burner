@@ -8,23 +8,40 @@ import {
   hexToString,
   isHex,
   type Address,
+  type Chain,
   type Hex,
   type TransactionRequest,
 } from "viem";
 import {
-  robinhoodChain,
-  robinhoodTestnet,
-} from "@/lib/chains/robinhood";
+  getSupportedChain,
+  getSupportedChainById,
+  type ChainKey,
+} from "@/lib/chains";
 import type { BurnerSession } from "@/lib/burner/client";
 import { getBurnerViemAccount } from "@/lib/burner/client";
-import type { NetworkMode } from "@/lib/store";
 
-export function getChain(network: NetworkMode) {
-  return network === "testnet" ? robinhoodTestnet : robinhoodChain;
+export function getChain(chainKey: ChainKey): Chain {
+  return getSupportedChain(chainKey).chain;
 }
 
-export function getPublicClient(network: NetworkMode) {
-  const chain = getChain(network);
+export function getChainById(chainId: number): Chain {
+  const entry = getSupportedChainById(chainId);
+  if (!entry) {
+    throw new Error(`Unsupported chain ${chainId}`);
+  }
+  return entry.chain;
+}
+
+export function getPublicClient(chainKey: ChainKey) {
+  const chain = getChain(chainKey);
+  return createPublicClient({
+    chain,
+    transport: http(chain.rpcUrls.default.http[0]),
+  });
+}
+
+export function getPublicClientById(chainId: number) {
+  const chain = getChainById(chainId);
   return createPublicClient({
     chain,
     transport: http(chain.rpcUrls.default.http[0]),
@@ -33,9 +50,9 @@ export function getPublicClient(network: NetworkMode) {
 
 export async function fetchEthBalance(
   address: Address,
-  network: NetworkMode
+  chainKey: ChainKey
 ): Promise<bigint> {
-  const client = getPublicClient(network);
+  const client = getPublicClient(chainKey);
   return client.getBalance({ address });
 }
 
@@ -48,17 +65,17 @@ export function formatEth(wei: bigint | null, digits = 6): string {
 
 export async function sendEth(args: {
   session: BurnerSession;
-  network: NetworkMode;
+  chainKey: ChainKey;
   to: Address;
   amountEth: string;
   pin?: string;
 }): Promise<Hex> {
-  const { session, network, to, amountEth, pin } = args;
+  const { session, chainKey, to, amountEth, pin } = args;
   if (pin) session.burner.setPassword(pin);
 
-  const chain = getChain(network);
+  const chain = getChain(chainKey);
   const account = (await getBurnerViemAccount(session)) as never;
-  const publicClient = getPublicClient(network);
+  const publicClient = getPublicClient(chainKey);
   const walletClient = createWalletClient({
     account,
     chain,
@@ -117,4 +134,11 @@ export function normalizeWcTx(
   if (typeof tx.nonce === "string" || typeof tx.nonce === "number")
     out.nonce = Number(tx.nonce);
   return out;
+}
+
+export function parseEip155ChainId(eip155?: string): number | null {
+  if (!eip155) return null;
+  const match = /^eip155:(\d+)$/.exec(eip155);
+  if (!match) return null;
+  return Number(match[1]);
 }

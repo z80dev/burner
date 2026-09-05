@@ -4,13 +4,17 @@ import { useEffect } from "react";
 import { ConnectPanel } from "@/components/connect-panel";
 import { WalletDashboard } from "@/components/wallet-dashboard";
 import { WalletConnectPanel } from "@/components/wallet-connect-panel";
-import { useWalletStore } from "@/lib/store";
+import { useWalletStore, hydrateChainKey } from "@/lib/store";
 import { Separator } from "@/components/ui/separator";
 
 export default function HomePage() {
   const address = useWalletStore((s) => s.address);
   const statusMessage = useWalletStore((s) => s.statusMessage);
   const setStatusMessage = useWalletStore((s) => s.setStatusMessage);
+
+  useEffect(() => {
+    hydrateChainKey();
+  }, []);
 
   useEffect(() => {
     if (!statusMessage) return;
@@ -59,11 +63,12 @@ export default function HomePage() {
                 RH Burner OS
               </p>
               <h1 className="max-w-xl text-xl text-white/70 md:text-2xl">
-                Use your Burner card on Robinhood Chain — and connect it to Safe.
+                Use your Burner card on Ethereum, Base, Arbitrum, and Robinhood
+                Chain — and connect it to Safe.
               </h1>
               <p className="max-w-lg text-base text-white/45">
-                Same secure-element keys as os.burner.pro. Tap to sign. WalletConnect
-                for app.safe.global on chain 4663.
+                Same secure-element keys as os.burner.pro. Tap to sign. ENS
+                names resolve. WalletConnect for Safe and other dApps.
               </p>
             </div>
             <ConnectPanel />
@@ -77,7 +82,7 @@ export default function HomePage() {
                     RH Burner OS
                   </p>
                   <p className="mt-1 text-white/50">
-                    Robinhood Chain wallet · hardware-backed
+                    Multi-chain Burner wallet · hardware-backed
                   </p>
                 </div>
                 <ConnectPanel />
@@ -100,7 +105,7 @@ export default function HomePage() {
 
       <footer className="relative z-10 border-t border-white/5 px-5 py-6 text-center text-xs text-white/30 md:px-8">
         Keys stay on your Burner. Not affiliated with Robinhood Markets or Arx —
-        built for Robinhood Chain (EVM) + Burner Ethereum cards.
+        built for Ethereum, Base, Arbitrum, Robinhood Chain + Burner cards.
       </footer>
     </div>
   );

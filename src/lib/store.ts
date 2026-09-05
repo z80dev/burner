@@ -4,11 +4,12 @@ import { create } from "zustand";
 import type { Address, Hex } from "viem";
 import type { BurnerSession, HaloMethod } from "@/lib/burner/client";
 import {
-  ROBINHOOD_CHAIN_ID,
-  ROBINHOOD_TESTNET_CHAIN_ID,
-} from "@/lib/chains/robinhood";
-
-export type NetworkMode = "mainnet" | "testnet";
+  DEFAULT_CHAIN_KEY,
+  chainIdForKey,
+  type ChainKey,
+  isSupportedChainId,
+  keyForChainId,
+} from "@/lib/chains";
 
 export type PendingWcProposal = {
   id: number;
@@ -36,11 +37,12 @@ export type WcSessionInfo = {
 
 type WalletState = {
   address: Address | null;
+  ensName: string | null;
   method: HaloMethod | null;
   session: BurnerSession | null;
   connecting: boolean;
   connectError: string | null;
-  network: NetworkMode;
+  chainKey: ChainKey;
   balanceWei: bigint | null;
   balanceLoading: boolean;
   pin: string;
@@ -56,7 +58,9 @@ type WalletState = {
   setConnecting: (v: boolean) => void;
   setConnectError: (e: string | null) => void;
   setSession: (s: BurnerSession | null) => void;
-  setNetwork: (n: NetworkMode) => void;
+  setEnsName: (name: string | null) => void;
+  setChainKey: (key: ChainKey) => void;
+  setChainById: (chainId: number) => boolean;
   setBalance: (b: bigint | null) => void;
   setBalanceLoading: (v: boolean) => void;
   setPin: (pin: string) => void;
@@ -73,6 +77,7 @@ type WalletState = {
 };
 
 const WC_PROJECT_KEY = "rh-burner-wc-project-id";
+const CHAIN_KEY_STORAGE = "rh-burner-chain-key";
 
 const DEFAULT_WC_PROJECT_ID = "1a0b6477019e1ebea77b070f4bb2b098";
 
@@ -89,13 +94,33 @@ function loadProjectId() {
   );
 }
 
+function loadChainKey(): ChainKey {
+  if (typeof window === "undefined") return DEFAULT_CHAIN_KEY;
+  const stored = localStorage.getItem(CHAIN_KEY_STORAGE);
+  if (
+    stored === "ethereum" ||
+    stored === "base" ||
+    stored === "arbitrum" ||
+    stored === "robinhood" ||
+    stored === "robinhood-testnet"
+  ) {
+    return stored;
+  }
+  // Migrate legacy mainnet/testnet toggle
+  if (stored === "testnet" || stored === "mainnet") {
+    return stored === "testnet" ? "robinhood-testnet" : "robinhood";
+  }
+  return DEFAULT_CHAIN_KEY;
+}
+
 export const useWalletStore = create<WalletState>((set, get) => ({
   address: null,
+  ensName: null,
   method: null,
   session: null,
   connecting: false,
   connectError: null,
-  network: "mainnet",
+  chainKey: DEFAULT_CHAIN_KEY,
   balanceWei: null,
   balanceLoading: false,
   pin: "",
@@ -116,8 +141,22 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       address: s?.address ?? null,
       method: s?.method ?? null,
       connectError: null,
+      ensName: null,
     }),
-  setNetwork: (n) => set({ network: n }),
+  setEnsName: (name) => set({ ensName: name }),
+  setChainKey: (key) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CHAIN_KEY_STORAGE, key);
+    }
+    set({ chainKey: key, balanceWei: null });
+  },
+  setChainById: (chainId) => {
+    if (!isSupportedChainId(chainId)) return false;
+    const key = keyForChainId(chainId);
+    if (!key) return false;
+    get().setChainKey(key);
+    return true;
+  },
   setBalance: (b) => set({ balanceWei: b }),
   setBalanceLoading: (v) => set({ balanceLoading: v }),
   setPin: (pin) => set({ pin }),
@@ -145,6 +184,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     set({
       session: null,
       address: null,
+      ensName: null,
       method: null,
       balanceWei: null,
       pendingProposal: null,
@@ -153,12 +193,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     });
   },
 
-  chainId: () =>
-    get().network === "testnet"
-      ? ROBINHOOD_TESTNET_CHAIN_ID
-      : ROBINHOOD_CHAIN_ID,
+  chainId: () => chainIdForKey(get().chainKey),
 }));
 
 export function hydrateWcProjectId() {
   useWalletStore.getState().setWcProjectId(loadProjectId());
+}
+
+export function hydrateChainKey() {
+  useWalletStore.setState({ chainKey: loadChainKey() });
 }

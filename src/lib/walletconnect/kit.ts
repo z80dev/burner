@@ -10,18 +10,22 @@ import {
   type Hex,
 } from "viem";
 import {
-  ROBINHOOD_CHAIN_ID,
-  ROBINHOOD_TESTNET_CHAIN_ID,
-  robinhoodChain,
-  robinhoodTestnet,
-} from "@/lib/chains/robinhood";
+  SUPPORTED_CHAINS,
+  allEip155Chains,
+  getSupportedChain,
+  getSupportedChainById,
+  isSupportedChainId,
+  type ChainKey,
+} from "@/lib/chains";
 import { getBurnerViemAccount, type BurnerSession } from "@/lib/burner/client";
 import {
   decodePersonalSignMessage,
+  getChain,
   getPublicClient,
   normalizeWcTx,
+  parseEip155ChainId,
 } from "@/lib/rpc";
-import { useWalletStore, type NetworkMode } from "@/lib/store";
+import { useWalletStore } from "@/lib/store";
 
 let walletKit: Awaited<ReturnType<typeof WalletKit.init>> | null = null;
 let initPromise: Promise<Awaited<ReturnType<typeof WalletKit.init>>> | null =
@@ -43,21 +47,16 @@ const SUPPORTED_METHODS = [
 
 const SUPPORTED_EVENTS = ["chainChanged", "accountsChanged"];
 
-function supportedChains(network: NetworkMode) {
-  // Always advertise both so Safe can pick Robinhood Chain
-  const primary =
-    network === "testnet"
-      ? ROBINHOOD_TESTNET_CHAIN_ID
-      : ROBINHOOD_CHAIN_ID;
-  const secondary =
-    network === "testnet"
-      ? ROBINHOOD_CHAIN_ID
-      : ROBINHOOD_TESTNET_CHAIN_ID;
-  return [`eip155:${primary}`, `eip155:${secondary}`];
+function supportedChains() {
+  return allEip155Chains();
 }
 
-function accountsFor(address: Address, network: NetworkMode) {
-  return supportedChains(network).map((c) => `${c}:${address}`);
+function accountsFor(address: Address) {
+  return supportedChains().map((c) => `${c}:${address}`);
+}
+
+function chainLabelList() {
+  return SUPPORTED_CHAINS.map((c) => c.label).join(", ");
 }
 
 function syncSessions() {
@@ -90,7 +89,7 @@ export async function initWalletKit(projectId: string) {
       metadata: {
         name: "RH Burner OS",
         description:
-          "Burner hardware wallet for Robinhood Chain — connect to Safe and other dApps",
+          "Burner hardware wallet for Ethereum, Base, Arbitrum, and Robinhood Chain — connect to Safe and other dApps",
         url: appUrl,
         icons: [`${appUrl}/icon.svg`],
       },
@@ -161,10 +160,10 @@ export async function approveProposal() {
     proposal: proposal.params,
     supportedNamespaces: {
       eip155: {
-        chains: supportedChains(store.network),
+        chains: supportedChains(),
         methods: SUPPORTED_METHODS,
         events: SUPPORTED_EVENTS,
-        accounts: accountsFor(store.address, store.network),
+        accounts: accountsFor(store.address),
       },
     },
   });
@@ -220,7 +219,13 @@ export async function approveRequest(pin?: string) {
   if (pin) session.burner.setPassword(pin);
 
   try {
-    const result = await handleRpc(session, store.network, pending.method, pending.params);
+    const result = await handleRpc(
+      session,
+      store.chainKey,
+      pending.method,
+      pending.params,
+      pending.chainId
+    );
     await walletKit.respondSessionRequest({
       topic: pending.topic,
       response: { id: pending.id, jsonrpc: "2.0", result },
@@ -264,13 +269,18 @@ export async function rejectRequest() {
 
 async function handleRpc(
   session: BurnerSession,
-  network: NetworkMode,
+  chainKey: ChainKey,
   method: string,
-  params: unknown[]
+  params: unknown[],
+  requestChainId?: string
 ): Promise<unknown> {
   const account = await getBurnerViemAccount(session);
-  const chain =
-    network === "testnet" ? robinhoodTestnet : robinhoodChain;
+  const requestedId = parseEip155ChainId(requestChainId);
+  const activeKey =
+    requestedId != null && isSupportedChainId(requestedId)
+      ? (getSupportedChainById(requestedId)?.key ?? chainKey)
+      : chainKey;
+  const chain = getChain(activeKey);
   const address = session.address;
 
   switch (method) {
@@ -336,35 +346,39 @@ async function handleRpc(
         chain,
       } as never);
       useWalletStore.getState().setLastTxHash(hash);
+      if (activeKey !== chainKey) {
+        useWalletStore.getState().setChainKey(activeKey);
+      }
       return hash;
     }
 
     case "wallet_switchEthereumChain": {
       const requested = (params[0] as { chainId: string })?.chainId;
       const id = Number.parseInt(requested, 16);
-      if (id === ROBINHOOD_CHAIN_ID) {
-        useWalletStore.getState().setNetwork("mainnet");
-        return null;
+      const ok = useWalletStore.getState().setChainById(id);
+      if (!ok) {
+        throw new Error(
+          `Unsupported chain ${id}. Supported: ${chainLabelList()}.`
+        );
       }
-      if (id === ROBINHOOD_TESTNET_CHAIN_ID) {
-        useWalletStore.getState().setNetwork("testnet");
-        return null;
-      }
-      throw new Error(`Unsupported chain ${id}. This wallet is Robinhood Chain only.`);
+      return null;
     }
 
     case "wallet_addEthereumChain": {
       const requested = (params[0] as { chainId: string })?.chainId;
       const id = Number.parseInt(requested, 16);
-      if (id === ROBINHOOD_CHAIN_ID || id === ROBINHOOD_TESTNET_CHAIN_ID) {
+      if (isSupportedChainId(id)) {
+        useWalletStore.getState().setChainById(id);
         return null;
       }
-      throw new Error("Only Robinhood Chain can be added.");
+      throw new Error(
+        `Only ${chainLabelList()} can be added.`
+      );
     }
 
     default:
-      // Touch public client so unused import stays meaningful for future eth_call proxies
-      void getPublicClient(network);
+      void getPublicClient(chainKey);
+      void getSupportedChain(chainKey);
       throw new Error(`Unsupported method: ${method}`);
   }
 }
