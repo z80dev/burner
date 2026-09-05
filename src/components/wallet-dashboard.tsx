@@ -6,21 +6,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Copy, Check, ExternalLink, Loader2, Send } from "lucide-react";
-import { isAddress, type Address } from "viem";
-import { useWalletStore } from "@/lib/store";
+import { isAddress } from "viem";
+import { useWalletStore, hydrateChainKey } from "@/lib/store";
 import { fetchEthBalance, formatEth, sendEth } from "@/lib/rpc";
 import {
+  SUPPORTED_CHAINS,
   explorerAddressUrl,
   explorerTxUrl,
+  getSupportedChain,
   safeUrlForChain,
-} from "@/lib/chains/robinhood";
+  type ChainKey,
+} from "@/lib/chains";
+import { looksLikeEnsName, resolveRecipient } from "@/lib/ens";
 
 export function WalletDashboard() {
   const {
     address,
+    ensName,
     session,
-    network,
-    setNetwork,
+    chainKey,
+    setChainKey,
     balanceWei,
     balanceLoading,
     setBalance,
@@ -38,6 +43,31 @@ export function WalletDashboard() {
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [ensLookup, setEnsLookup] = useState<{
+    query: string;
+    address: string | null;
+    status: "loading" | "done";
+  } | null>(null);
+
+  const chain = getSupportedChain(chainKey);
+  const trimmedTo = to.trim();
+  const ensQuery =
+    trimmedTo && !isAddress(trimmedTo) && looksLikeEnsName(trimmedTo)
+      ? trimmedTo
+      : null;
+  const resolving =
+    ensQuery != null &&
+    (ensLookup?.query !== ensQuery || ensLookup.status === "loading");
+  const resolvedPreview =
+    ensQuery != null &&
+    ensLookup?.query === ensQuery &&
+    ensLookup.status === "done"
+      ? ensLookup.address
+      : null;
+
+  useEffect(() => {
+    hydrateChainKey();
+  }, []);
 
   useEffect(() => {
     if (!address) return;
@@ -45,7 +75,7 @@ export function WalletDashboard() {
     async function refresh() {
       setBalanceLoading(true);
       try {
-        const bal = await fetchEthBalance(address!, network);
+        const bal = await fetchEthBalance(address!, chainKey);
         if (!cancelled) setBalance(bal);
       } catch {
         if (!cancelled) setBalance(null);
@@ -59,7 +89,34 @@ export function WalletDashboard() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [address, network, setBalance, setBalanceLoading]);
+  }, [address, chainKey, setBalance, setBalanceLoading]);
+
+  useEffect(() => {
+    if (!ensQuery) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setEnsLookup({ query: ensQuery, address: null, status: "loading" });
+      void resolveRecipient(ensQuery)
+        .then((r) => {
+          if (!cancelled) {
+            setEnsLookup({
+              query: ensQuery,
+              address: r.address,
+              status: "done",
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setEnsLookup({ query: ensQuery, address: null, status: "done" });
+          }
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [ensQuery]);
 
   if (!address || !session) return null;
 
@@ -72,10 +129,6 @@ export function WalletDashboard() {
   async function handleSend() {
     setSendError(null);
     if (!session || !address) return;
-    if (!isAddress(to)) {
-      setSendError("Enter a valid recipient address");
-      return;
-    }
     if (!amount || Number(amount) <= 0) {
       setSendError("Enter an amount greater than 0");
       return;
@@ -86,17 +139,23 @@ export function WalletDashboard() {
     }
     setSending(true);
     try {
+      const { address: recipient, ensName: resolvedEns } =
+        await resolveRecipient(to);
       const hash = await sendEth({
         session,
-        network,
-        to: to as Address,
+        chainKey,
+        to: recipient,
         amountEth: amount,
         pin,
       });
       setLastTxHash(hash);
-      setStatusMessage("Transaction broadcast on Robinhood Chain");
+      setStatusMessage(
+        resolvedEns
+          ? `Sent to ${resolvedEns} on ${chain.label}`
+          : `Transaction broadcast on ${chain.label}`
+      );
       setAmount("");
-      const bal = await fetchEthBalance(address, network);
+      const bal = await fetchEthBalance(address, chainKey);
       setBalance(bal);
     } catch (e) {
       setSendError(e instanceof Error ? e.message : "Send failed");
@@ -121,36 +180,25 @@ export function WalletDashboard() {
             </h2>
           </div>
           <p className="mt-2 text-sm text-white/45">
-            on Robinhood Chain {network === "testnet" ? "Testnet" : "Mainnet"} ·
-            ID {chainId()}
+            on {chain.label} · ID {chainId()}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant={network === "mainnet" ? "default" : "outline"}
-            className={
-              network === "mainnet"
-                ? "bg-emerald-400 text-zinc-950 hover:bg-emerald-300"
-                : "border-white/20 bg-transparent text-white/70 hover:bg-white/10"
-            }
-            onClick={() => setNetwork("mainnet")}
+        <label className="space-y-1.5">
+          <span className="block text-xs uppercase tracking-wider text-white/45">
+            Network
+          </span>
+          <select
+            value={chainKey}
+            onChange={(e) => setChainKey(e.target.value as ChainKey)}
+            className="h-9 min-w-[11rem] rounded-lg border border-white/20 bg-black/40 px-3 text-sm text-white outline-none focus-visible:border-emerald-400/60"
           >
-            Mainnet
-          </Button>
-          <Button
-            size="sm"
-            variant={network === "testnet" ? "default" : "outline"}
-            className={
-              network === "testnet"
-                ? "bg-emerald-400 text-zinc-950 hover:bg-emerald-300"
-                : "border-white/20 bg-transparent text-white/70 hover:bg-white/10"
-            }
-            onClick={() => setNetwork("testnet")}
-          >
-            Testnet
-          </Button>
-        </div>
+            {SUPPORTED_CHAINS.map((c) => (
+              <option key={c.key} value={c.key} className="bg-zinc-950">
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <Tabs defaultValue="receive" className="w-full">
@@ -167,8 +215,11 @@ export function WalletDashboard() {
             </div>
             <div className="min-w-0 flex-1 space-y-3">
               <p className="text-sm text-white/55">
-                Deposit ETH on Robinhood Chain to this Burner address.
+                Deposit ETH on {chain.label} to this Burner address.
               </p>
+              {ensName && (
+                <p className="font-display text-lg text-emerald-300">{ensName}</p>
+              )}
               <code className="block break-all rounded-lg bg-black/40 px-3 py-2 font-mono text-sm text-emerald-200">
                 {address}
               </code>
@@ -202,11 +253,19 @@ export function WalletDashboard() {
                 To
               </span>
               <Input
-                placeholder="0x…"
+                placeholder="0x… or vitalik.eth"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 className="border-white/15 bg-black/30 font-mono text-white"
               />
+              {resolving && (
+                <span className="text-xs text-white/40">Resolving ENS…</span>
+              )}
+              {!resolving && resolvedPreview && (
+                <span className="block font-mono text-xs text-emerald-300/80">
+                  → {resolvedPreview}
+                </span>
+              )}
             </label>
             <label className="space-y-1.5">
               <span className="text-xs uppercase tracking-wider text-white/45">
@@ -263,7 +322,7 @@ export function WalletDashboard() {
         <TabsContent value="safe" className="space-y-4">
           <p className="max-w-lg text-sm text-white/60">
             Open Safe and connect this wallet with WalletConnect. Select{" "}
-            <strong className="text-white">Robinhood Chain</strong> (chain ID{" "}
+            <strong className="text-white">{chain.label}</strong> (chain ID{" "}
             {chainId()}) when creating or opening a Safe. Use the WalletConnect
             panel below to paste the URI from Safe.
           </p>

@@ -7,6 +7,7 @@ import { Nfc, Usb, Loader2, Unplug } from "lucide-react";
 import { connectBurner, getBridgeConsentUrl } from "@/lib/burner/client";
 import { useWalletStore } from "@/lib/store";
 import { fetchEthBalance } from "@/lib/rpc";
+import { lookupEnsName } from "@/lib/ens";
 
 const subscribeToNfc = () => () => {};
 const getNfcSnapshot = () => "NDEFReader" in window;
@@ -15,14 +16,16 @@ const getServerNfcSnapshot = () => false;
 export function ConnectPanel() {
   const {
     address,
+    ensName,
     method,
     connecting,
     connectError,
     setConnecting,
     setConnectError,
     setSession,
+    setEnsName,
     disconnect,
-    network,
+    chainKey,
     setBalance,
     setBalanceLoading,
   } = useWalletStore();
@@ -39,8 +42,12 @@ export function ConnectPanel() {
       const session = await connectBurner(preferred);
       setSession(session);
       setBalanceLoading(true);
-      const bal = await fetchEthBalance(session.address, network);
+      const [bal, name] = await Promise.all([
+        fetchEthBalance(session.address, chainKey),
+        lookupEnsName(session.address),
+      ]);
       setBalance(bal);
+      setEnsName(name);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to connect Burner";
       setConnectError(
@@ -59,9 +66,15 @@ export function ConnectPanel() {
       <div className="flex flex-wrap items-center gap-3">
         <Badge
           variant="secondary"
-          className="rounded-md bg-emerald-500/15 px-3 py-1.5 font-mono text-sm text-emerald-300"
+          className="rounded-md bg-emerald-500/15 px-3 py-1.5 text-sm text-emerald-300"
         >
-          {address.slice(0, 6)}…{address.slice(-4)}
+          {ensName ? (
+            <span className="font-display font-medium">{ensName}</span>
+          ) : (
+            <span className="font-mono">
+              {address.slice(0, 6)}…{address.slice(-4)}
+            </span>
+          )}
         </Badge>
         {method && (
           <Badge variant="outline" className="border-white/15 text-white/70">

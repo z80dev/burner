@@ -154,7 +154,8 @@ export function WalletConnectPanel() {
         >
           app.safe.global
         </a>
-        , choose WalletConnect, select Robinhood Chain, then paste the{" "}
+        , choose WalletConnect, pick Ethereum / Base / Arbitrum / Robinhood, then
+        paste the{" "}
         <code className="rounded bg-white/10 px-1">wc:</code> URI here. Your
         Burner signs every request — keys never leave the card.
       </p>
@@ -271,8 +272,8 @@ export function WalletConnectPanel() {
           <DialogHeader>
             <DialogTitle>Approve connection</DialogTitle>
             <DialogDescription className="text-white/55">
-              {pendingProposal?.name} wants to connect to your Burner on
-              Robinhood Chain.
+              {pendingProposal?.name} wants to connect to your Burner (Ethereum,
+              Base, Arbitrum, Robinhood Chain).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm">
