@@ -27,14 +27,19 @@ function createBurner(haloExecCb: HaloExec) {
   });
 }
 
-async function connectViaWebNfc(): Promise<BurnerSession> {
-  const { execHaloCmdWeb } = await import("@arx-research/libhalo/api/web");
-  const burner = createBurner(async (cmd) => execHaloCmdWeb(cmd as never));
+async function connectViaPhone(
+  preferred?: "webnfc" | "credential"
+): Promise<BurnerSession> {
+  const { execHaloCmdWeb, haloGetDefaultMethod } = await import("@arx-research/libhalo/api/web");
+  const method = preferred ?? haloGetDefaultMethod();
+  const burner = createBurner(async (cmd) =>
+    execHaloCmdWeb(cmd as never, { method })
+  );
   const data = await burner.getData();
   return {
     address: data.address,
     burner,
-    method: "webnfc",
+    method,
   };
 }
 
@@ -81,28 +86,12 @@ export function getBridgeConsentUrl(websiteUrl?: string): string {
   return `http://127.0.0.1:32868/consent?website=${encodeURIComponent(origin)}`;
 }
 
-/**
- * Prefer WebNFC on capable devices; fall back to HaLo Bridge on desktop.
- */
+/** Use LibHaLo's WebNFC / iOS credential transport; bridge is desktop opt-in. */
 export async function connectBurner(
   preferred: HaloMethod | "auto" = "auto"
 ): Promise<BurnerSession> {
-  if (preferred === "webnfc") return connectViaWebNfc();
   if (preferred === "bridge") return connectViaBridge();
-
-  const hasNfc =
-    typeof window !== "undefined" && "NDEFReader" in window;
-
-  if (hasNfc) {
-    try {
-      return await connectViaWebNfc();
-    } catch (err) {
-      // Fall through to bridge if NFC fails (e.g. user cancelled).
-      console.warn("WebNFC connect failed, trying HaLo Bridge", err);
-    }
-  }
-
-  return connectViaBridge();
+  return connectViaPhone(preferred === "auto" ? undefined : preferred);
 }
 
 export function setBurnerPin(session: BurnerSession, pin: string) {

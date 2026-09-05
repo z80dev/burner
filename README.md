@@ -8,7 +8,7 @@ Private keys never leave the Burner secure element. Signing uses the same LibBur
 
 ## Features
 
-- Connect Burner via **phone NFC** (Android Chrome) or **HaLo Bridge** (desktop USB reader)
+- Connect Burner via **phone NFC** (iPhone Safari / Android Chrome) or **HaLo Bridge** (desktop USB reader)
 - View ETH balance and send on **Robinhood Chain** (mainnet `4663` / testnet `46630`)
 - **WalletConnect** pairing — paste a `wc:` URI from Safe (or any dApp)
 - Approve session proposals and sign `personal_sign` / typed data / transactions with a card tap + PIN
@@ -35,7 +35,9 @@ For the deployed site, grant consent for the origin `https://z80.wtf` instead (n
 
 ### Phone NFC
 
-Use Android Chrome (WebNFC). Tap the card when prompted.
+On iPhone, open the site in Safari, tap **Tap Burner to connect**, and follow the NFC security-key prompt while holding the Burner near the top of the phone. LibHaLo uses the iOS credential transport.
+
+Android Chrome uses WebNFC. Neither phone flow requires HaLo Bridge or a hosted backend. The **HaLo Bridge** button is only for a desktop with the local bridge app and a USB NFC reader.
 
 ## Connect to Safe.global
 

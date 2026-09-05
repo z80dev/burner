@@ -43,12 +43,11 @@ export function ConnectPanel() {
       setBalance(bal);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to connect Burner";
-      const hint =
-        msg.toLowerCase().includes("consent") ||
-        msg.toLowerCase().includes("bridge")
-          ? ` Grant bridge consent: ${getBridgeConsentUrl()}`
-          : "";
-      setConnectError(msg + hint);
+      setConnectError(
+        msg.toLowerCase().includes("unable to locate halo bridge")
+          ? "HaLo Bridge was not found on this computer. Install and start HaLo Bridge, then connect a USB NFC reader. On iPhone or Android, use Tap Burner to connect for phone NFC. No hosted backend is needed."
+          : msg
+      );
     } finally {
       setConnecting(false);
       setBalanceLoading(false);
@@ -66,7 +65,7 @@ export function ConnectPanel() {
         </Badge>
         {method && (
           <Badge variant="outline" className="border-white/15 text-white/70">
-            via {method === "webnfc" ? "NFC" : "HaLo Bridge"}
+            via {method === "bridge" ? "HaLo Bridge" : "NFC"}
           </Badge>
         )}
         <Button
@@ -122,7 +121,19 @@ export function ConnectPanel() {
         </Button>
       </div>
       {connectError && (
-        <p className="max-w-xl text-sm text-rose-300/90">{connectError}</p>
+        <div role="alert" className="max-w-xl space-y-2 text-sm text-rose-300/90">
+          <p>{connectError}</p>
+          {connectError.toLowerCase().includes("consent") && (
+            <a
+              href={getBridgeConsentUrl()}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block text-emerald-300 underline"
+            >
+              Grant this site access in your local HaLo Bridge app
+            </a>
+          )}
+        </div>
       )}
       <p className="max-w-lg text-sm text-white/50">
         On desktop, install{" "}
@@ -134,8 +145,10 @@ export function ConnectPanel() {
         >
           HaLo Bridge
         </a>
-        , then grant consent once. On Android Chrome, tap your Burner to the
-        phone.
+        {" "}and start it with a USB NFC reader connected. Bridge runs on your
+        computer, not on our server. On iPhone, open this site in Safari and
+        tap to connect, then follow the security-key prompt with your Burner
+        held near the top of your phone. Android Chrome uses NFC directly.
       </p>
     </div>
   );
