@@ -43,10 +43,27 @@ export function WalletDashboard() {
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [resolvedPreview, setResolvedPreview] = useState<string | null>(null);
-  const [resolving, setResolving] = useState(false);
+  const [ensLookup, setEnsLookup] = useState<{
+    query: string;
+    address: string | null;
+    status: "loading" | "done";
+  } | null>(null);
 
   const chain = getSupportedChain(chainKey);
+  const trimmedTo = to.trim();
+  const ensQuery =
+    trimmedTo && !isAddress(trimmedTo) && looksLikeEnsName(trimmedTo)
+      ? trimmedTo
+      : null;
+  const resolving =
+    ensQuery != null &&
+    (ensLookup?.query !== ensQuery || ensLookup.status === "loading");
+  const resolvedPreview =
+    ensQuery != null &&
+    ensLookup?.query === ensQuery &&
+    ensLookup.status === "done"
+      ? ensLookup.address
+      : null;
 
   useEffect(() => {
     hydrateChainKey();
@@ -75,26 +92,23 @@ export function WalletDashboard() {
   }, [address, chainKey, setBalance, setBalanceLoading]);
 
   useEffect(() => {
-    const trimmed = to.trim();
-    if (!trimmed || isAddress(trimmed) || !looksLikeEnsName(trimmed)) {
-      setResolvedPreview(null);
-      setResolving(false);
-      return;
-    }
+    if (!ensQuery) return;
     let cancelled = false;
-    setResolving(true);
     const timer = setTimeout(() => {
-      void resolveRecipient(trimmed)
+      setEnsLookup({ query: ensQuery, address: null, status: "loading" });
+      void resolveRecipient(ensQuery)
         .then((r) => {
           if (!cancelled) {
-            setResolvedPreview(r.address);
-            setResolving(false);
+            setEnsLookup({
+              query: ensQuery,
+              address: r.address,
+              status: "done",
+            });
           }
         })
         .catch(() => {
           if (!cancelled) {
-            setResolvedPreview(null);
-            setResolving(false);
+            setEnsLookup({ query: ensQuery, address: null, status: "done" });
           }
         });
     }, 400);
@@ -102,7 +116,7 @@ export function WalletDashboard() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [to]);
+  }, [ensQuery]);
 
   if (!address || !session) return null;
 
