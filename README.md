@@ -17,7 +17,7 @@ Private keys never leave the Burner secure element. Signing uses the same LibBur
 ## Quick start
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 # Add a free WalletConnect Project ID from https://cloud.reown.com
 npm run dev
@@ -31,7 +31,7 @@ Open [http://127.0.0.1:3847](http://127.0.0.1:3847).
 2. Grant origin consent: open `http://127.0.0.1:32868/consent?website=http://127.0.0.1:3847`
 3. Plug in an NFC reader, tap your Burner, click **Tap Burner to connect**
 
-For the deployed site, grant consent for `https://z80.wtf/burner` instead.
+For the deployed site, grant consent for the origin `https://z80.wtf` instead (no `/burner` path).
 
 ### Phone NFC
 
@@ -58,7 +58,10 @@ Local production export (with `/burner` base path):
 
 ```bash
 GITHUB_PAGES=true npm run build
-npx serve out
+mkdir -p .preview
+ln -sfn ../out .preview/burner
+npx serve .preview
+# Open http://localhost:3000/burner/
 ```
 
 ## Network

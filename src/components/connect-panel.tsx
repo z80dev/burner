@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Nfc, Usb, Loader2, Unplug } from "lucide-react";
 import { connectBurner, getBridgeConsentUrl } from "@/lib/burner/client";
 import { useWalletStore } from "@/lib/store";
 import { fetchEthBalance } from "@/lib/rpc";
+
+const subscribeToNfc = () => () => {};
+const getNfcSnapshot = () => "NDEFReader" in window;
+const getServerNfcSnapshot = () => false;
 
 export function ConnectPanel() {
   const {
@@ -22,11 +26,11 @@ export function ConnectPanel() {
     setBalance,
     setBalanceLoading,
   } = useWalletStore();
-  const [hasNfc, setHasNfc] = useState(false);
-
-  useEffect(() => {
-    setHasNfc(typeof window !== "undefined" && "NDEFReader" in window);
-  }, []);
+  const hasNfc = useSyncExternalStore(
+    subscribeToNfc,
+    getNfcSnapshot,
+    getServerNfcSnapshot
+  );
 
   async function handleConnect(preferred: "auto" | "webnfc" | "bridge") {
     setConnecting(true);

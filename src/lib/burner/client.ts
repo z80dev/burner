@@ -71,12 +71,13 @@ async function connectViaBridge(): Promise<BurnerSession> {
 }
 
 export function getBridgeConsentUrl(websiteUrl?: string): string {
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-  const origin =
+  // Bridge consent is scoped to the WebSocket Origin, which has no path.
+  const origin = new URL(
     websiteUrl ||
-    (typeof window !== "undefined"
-      ? `${window.location.origin}${basePath}`
-      : "http://127.0.0.1:3847");
+      (typeof window !== "undefined"
+        ? window.location.origin
+        : "http://127.0.0.1:3847")
+  ).origin;
   return `http://127.0.0.1:32868/consent?website=${encodeURIComponent(origin)}`;
 }
 
