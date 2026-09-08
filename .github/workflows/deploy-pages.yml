@@ -34,6 +34,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test WalletConnect
+        run: npm test
+
       - name: Build static export
         env:
           GITHUB_PAGES: "true"

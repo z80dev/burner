@@ -120,19 +120,33 @@ export function normalizeWcTx(
   tx: Record<string, unknown>
 ): TransactionRequest {
   const out: TransactionRequest = {};
+  for (const field of ["authorizationList", "blobs", "blobVersionedHashes", "maxFeePerBlobGas", "accessList"]) {
+    if (tx[field] != null) throw new Error(`Transactions with ${field} are not supported by this wallet yet.`);
+  }
+  if (tx.type != null && ![0, 2].includes(Number(tx.type))) throw new Error("Unsupported transaction type.");
+  function quantity(value: unknown, label: string): bigint {
+    if (typeof value === "number" && (!Number.isSafeInteger(value) || value < 0)) throw new Error(`Invalid ${label}.`);
+    if (!["string", "number", "bigint"].includes(typeof value) || !/^(0x[0-9a-f]+|[0-9]+)$/i.test(String(value))) throw new Error(`Invalid ${label}.`);
+    return BigInt(value as string);
+  }
   if (typeof tx.to === "string") out.to = tx.to as Address;
   if (typeof tx.from === "string") out.from = tx.from as Address;
-  if (typeof tx.data === "string") out.data = tx.data as Hex;
-  if (typeof tx.value === "string") out.value = BigInt(tx.value);
-  if (typeof tx.gas === "string") out.gas = BigInt(tx.gas);
-  if (typeof tx.gasLimit === "string") out.gas = BigInt(tx.gasLimit);
-  if (typeof tx.gasPrice === "string") out.gasPrice = BigInt(tx.gasPrice);
-  if (typeof tx.maxFeePerGas === "string")
-    out.maxFeePerGas = BigInt(tx.maxFeePerGas);
-  if (typeof tx.maxPriorityFeePerGas === "string")
-    out.maxPriorityFeePerGas = BigInt(tx.maxPriorityFeePerGas);
-  if (typeof tx.nonce === "string" || typeof tx.nonce === "number")
-    out.nonce = Number(tx.nonce);
+  const data = tx.data ?? tx.input;
+  if (data != null) {
+    if (typeof data !== "string" || !/^0x([0-9a-f]{2})*$/i.test(data)) throw new Error("Invalid transaction data.");
+    if (tx.data != null && tx.input != null && tx.data !== tx.input) throw new Error("Conflicting transaction data.");
+    out.data = data as Hex;
+  }
+  for (const field of ["value", "gas", "gasPrice", "maxFeePerGas", "maxPriorityFeePerGas"] as const) {
+    if (tx[field] != null) out[field] = quantity(tx[field], field);
+  }
+  if (tx.gasLimit != null) out.gas = quantity(tx.gasLimit, "gas limit");
+  if (tx.nonce != null) {
+    const nonce = quantity(tx.nonce, "nonce");
+    if (nonce > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("Invalid nonce.");
+    out.nonce = Number(nonce);
+  }
+  if (tx.type != null) out.type = Number(tx.type) === 2 ? "eip1559" : "legacy";
   return out;
 }
 

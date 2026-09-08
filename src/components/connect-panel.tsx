@@ -42,12 +42,12 @@ export function ConnectPanel() {
       const session = await connectBurner(preferred);
       setSession(session);
       setBalanceLoading(true);
-      const [bal, name] = await Promise.all([
+      const [bal, name] = await Promise.allSettled([
         fetchEthBalance(session.address, chainKey),
         lookupEnsName(session.address),
       ]);
-      setBalance(bal);
-      setEnsName(name);
+      setBalance(bal.status === "fulfilled" ? bal.value : null);
+      setEnsName(name.status === "fulfilled" ? name.value : null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to connect Burner";
       setConnectError(
@@ -81,11 +81,12 @@ export function ConnectPanel() {
             via {method === "bridge" ? "HaLo Bridge" : "NFC"}
           </Badge>
         )}
+        {connectError && <p role="alert" className="text-sm text-rose-300">{connectError}</p>}
         <Button
           variant="ghost"
           size="sm"
           className="text-white/70 hover:bg-white/10 hover:text-white"
-          onClick={() => void disconnect()}
+          onClick={() => void disconnect().catch(e => setConnectError(e instanceof Error ? e.message : "Disconnect failed"))}
         >
           <Unplug className="size-4" />
           Disconnect
@@ -148,21 +149,10 @@ export function ConnectPanel() {
           )}
         </div>
       )}
-      <p className="max-w-lg text-sm text-white/50">
-        On desktop, install{" "}
-        <a
-          className="text-emerald-300 underline-offset-2 hover:underline"
-          href="https://github.com/arx-research/libhalo/releases"
-          target="_blank"
-          rel="noreferrer"
-        >
-          HaLo Bridge
-        </a>
-        {" "}and start it with a USB NFC reader connected. Bridge runs on your
-        computer, not on our server. On iPhone, open this site in Safari and
-        tap to connect, then follow the security-key prompt with your Burner
-        held near the top of your phone. Android Chrome uses NFC directly.
-      </p>
+      <div className="max-w-lg space-y-3 text-sm leading-relaxed text-white/50">
+        <p><span className="text-white/75">On your phone</span> · Open in Safari on iPhone or Chrome on Android. Tap connect, then hold your Burner near the NFC reader.</p>
+        <details><summary className="cursor-pointer text-white/65">Using a desktop?</summary><p className="mt-2">Install <a className="text-emerald-300 hover:underline" href="https://github.com/arx-research/libhalo/releases" target="_blank" rel="noreferrer">HaLo Bridge</a>, start it with a USB NFC reader, then choose HaLo Bridge above.</p></details>
+      </div>
     </div>
   );
 }

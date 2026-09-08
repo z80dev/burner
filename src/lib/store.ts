@@ -17,6 +17,9 @@ export type PendingWcProposal = {
   url: string;
   description: string;
   icons: string[];
+  chains: string[];
+  methods: string[];
+  validation?: string;
 };
 
 export type PendingWcRequest = {
@@ -26,6 +29,7 @@ export type PendingWcRequest = {
   params: unknown[];
   chainId?: string;
   dappName?: string;
+  dappUrl?: string;
 };
 
 export type WcSessionInfo = {
@@ -33,6 +37,8 @@ export type WcSessionInfo = {
   name: string;
   url: string;
   icon?: string;
+  accounts: string[];
+  chains: string[];
 };
 
 type WalletState = {
@@ -176,6 +182,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   disconnect: async () => {
     const { session } = get();
+    const { disconnectAllSessions } = await import("@/lib/walletconnect/kit");
+    await disconnectAllSessions();
     try {
       await session?.disconnect?.();
     } catch {
@@ -183,6 +191,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
     set({
       session: null,
+      pin: "",
+      wcUri: "",
+      lastTxHash: null,
+      statusMessage: null,
       address: null,
       ensName: null,
       method: null,

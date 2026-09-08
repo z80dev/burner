@@ -5,7 +5,7 @@ import { ConnectPanel } from "@/components/connect-panel";
 import { WalletDashboard } from "@/components/wallet-dashboard";
 import { WalletConnectPanel } from "@/components/wallet-connect-panel";
 import { useWalletStore, hydrateChainKey } from "@/lib/store";
-import { Separator } from "@/components/ui/separator";
+import { Nfc, ShieldCheck, ArrowDownRight } from "lucide-react";
 
 export default function HomePage() {
   const address = useWalletStore((s) => s.address);
@@ -42,7 +42,7 @@ export default function HomePage() {
             </svg>
           </div>
           <span className="font-display text-lg font-semibold tracking-tight text-white">
-            RH Burner OS
+            Burner
           </span>
         </div>
         <a
@@ -57,21 +57,22 @@ export default function HomePage() {
 
       <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-14 px-5 pb-24 pt-4 md:px-8 md:pt-10">
         {!address ? (
-          <section className="flex min-h-[70vh] flex-col justify-center gap-8">
-            <div className="max-w-2xl space-y-5">
-              <p className="font-display text-5xl font-semibold leading-[1.05] tracking-tight text-white md:text-7xl">
-                RH Burner OS
-              </p>
-              <h1 className="max-w-xl text-xl text-white/70 md:text-2xl">
-                Use your Burner card on Ethereum, Base, Arbitrum, and Robinhood
-                Chain — and connect it to Safe.
-              </h1>
-              <p className="max-w-lg text-base text-white/45">
-                Same secure-element keys as os.burner.pro. Tap to sign. ENS
-                names resolve. WalletConnect for Safe and other dApps.
-              </p>
+          <section className="grid items-center gap-10 py-6 md:grid-cols-[1.4fr_1fr] md:py-12">
+            <div className="space-y-7">
+              <p className="text-xs font-medium uppercase tracking-[0.24em] text-emerald-300">A wallet built around your card</p>
+              <h1 className="font-display text-5xl font-semibold leading-[1.05] tracking-tight text-white md:text-7xl">Tap in.<br /><span className="text-emerald-300">Go anywhere.</span></h1>
+              <p className="max-w-lg text-lg leading-relaxed text-white/60">Your Burner card, connected to Ethereum, Base, Arbitrum, and Robinhood. Keep your keys in your pocket. Bring your wallet to your favorite dapps.</p>
+              <ConnectPanel />
+              <a href="#dapps" className="inline-flex items-center gap-2 text-sm text-emerald-300 hover:underline">Connect to a dapp <ArrowDownRight className="size-4" /></a>
             </div>
-            <ConnectPanel />
+            <div className="hidden md:block" aria-hidden="true">
+              <div className="relative mx-auto aspect-[1.586] max-w-sm rotate-[-8deg] overflow-hidden rounded-2xl border border-emerald-200/20 bg-gradient-to-br from-emerald-950 via-[#152b22] to-[#060b08] p-7 shadow-2xl shadow-emerald-950/60">
+                <div className="flex items-center justify-between"><span className="font-display text-3xl font-semibold">Burner</span><Nfc className="size-7 text-emerald-200/70" /></div>
+                <div className="absolute -bottom-10 -right-6 size-48 rounded-full border-[24px] border-emerald-300/10" />
+                <div className="absolute bottom-7 left-7 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-emerald-100/60"><ShieldCheck className="size-4" />Keys stay on the card</div>
+              </div>
+              <p className="mt-10 text-center text-xs uppercase tracking-[0.18em] text-white/35">One card. Multiple networks.</p>
+            </div>
           </section>
         ) : (
           <>
@@ -79,7 +80,7 @@ export default function HomePage() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="font-display text-3xl font-semibold text-white md:text-4xl">
-                    RH Burner OS
+                    Burner
                   </p>
                   <p className="mt-1 text-white/50">
                     Multi-chain Burner wallet · hardware-backed
@@ -96,11 +97,10 @@ export default function HomePage() {
 
             <WalletDashboard />
 
-            <Separator className="bg-white/10" />
 
-            <WalletConnectPanel />
           </>
         )}
+        <WalletConnectPanel />
       </main>
 
       <footer className="relative z-10 border-t border-white/5 px-5 py-6 text-center text-xs text-white/30 md:px-8">

@@ -6,7 +6,8 @@
     "dev": "next dev --hostname 127.0.0.1 --port 3847",
     "build": "next build",
     "start": "next start --hostname 127.0.0.1 --port 3847",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run"
   },
   "dependencies": {
     "@arx-research/libburner": "^0.14.0",
@@ -22,6 +23,7 @@
     "lucide-react": "^1.41.0",
     "next": "16.3.4",
     "process": "^0.11.10",
+    "qr-scanner": "^1.4.2",
     "qrcode.react": "^4.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -39,6 +41,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

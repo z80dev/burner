@@ -12,7 +12,6 @@ import {
 import {
   SUPPORTED_CHAINS,
   allEip155Chains,
-  getSupportedChain,
   getSupportedChainById,
   isSupportedChainId,
   type ChainKey,
@@ -21,7 +20,6 @@ import { getBurnerViemAccount, type BurnerSession } from "@/lib/burner/client";
 import {
   decodePersonalSignMessage,
   getChain,
-  getPublicClient,
   normalizeWcTx,
   parseEip155ChainId,
 } from "@/lib/rpc";
@@ -31,19 +29,12 @@ let walletKit: Awaited<ReturnType<typeof WalletKit.init>> | null = null;
 let initPromise: Promise<Awaited<ReturnType<typeof WalletKit.init>>> | null =
   null;
 
-const SUPPORTED_METHODS = [
-  "eth_accounts",
-  "eth_requestAccounts",
-  "eth_sendTransaction",
-  "eth_signTransaction",
-  "eth_sign",
-  "personal_sign",
-  "eth_signTypedData",
-  "eth_signTypedData_v3",
-  "eth_signTypedData_v4",
-  "wallet_switchEthereumChain",
-  "wallet_addEthereumChain",
-];
+import { SUPPORTED_METHODS, SIGNING_METHODS, normalizePairingUri, validateRequest } from "./validation";
+
+type Proposal = Omit<WalletKitTypes.SessionProposal, "verifyContext"> & { verifyContext?: WalletKitTypes.SessionProposal["verifyContext"] };
+let proposals: Proposal[] = [];
+let requests: WalletKitTypes.SessionRequest[] = [];
+let responding = false;
 
 const SUPPORTED_EVENTS = ["chainChanged", "accountsChanged"];
 
@@ -66,12 +57,14 @@ function syncSessions() {
     name: s.peer.metadata.name,
     url: s.peer.metadata.url,
     icon: s.peer.metadata.icons?.[0],
+    accounts: Object.values(s.namespaces).flatMap(n => n.accounts),
+    chains: [...new Set(Object.values(s.namespaces).flatMap(n => n.accounts.map(a => a.split(":").slice(0, 2).join(":"))))],
   }));
   useWalletStore.getState().setWcSessions(sessions);
 }
 
 export async function initWalletKit(projectId: string) {
-  if (!projectId || projectId.length < 8) {
+  if (!/^[a-f0-9]{32}$/i.test(projectId)) {
     throw new Error("Set a WalletConnect Project ID first (cloud.reown.com).");
   }
   if (walletKit) return walletKit;
@@ -87,7 +80,7 @@ export async function initWalletKit(projectId: string) {
     const kit = await WalletKit.init({
       core,
       metadata: {
-        name: "RH Burner OS",
+        name: "Burner",
         description:
           "Burner hardware wallet for Ethereum, Base, Arbitrum, and Robinhood Chain — connect to Safe and other dApps",
         url: appUrl,
@@ -97,11 +90,27 @@ export async function initWalletKit(projectId: string) {
 
     kit.on("session_proposal", onSessionProposal);
     kit.on("session_request", onSessionRequest);
-    kit.on("session_delete", () => syncSessions());
+    kit.on("session_delete", ({ topic }) => {
+      requests = requests.filter(r => r.topic !== topic);
+      syncPending();
+      syncSessions();
+    });
+    kit.on("proposal_expire", ({ id }) => {
+      proposals = proposals.filter(p => p.id !== id);
+      syncPending();
+    });
+    kit.on("session_request_expire", ({ id }) => {
+      requests = requests.filter(r => r.id !== id);
+      syncPending();
+    });
+    core.relayer.on("relayer_connect", () => useWalletStore.getState().setWcReady(true));
+    core.relayer.on("relayer_disconnect", () => useWalletStore.getState().setWcReady(false));
 
     walletKit = kit;
     useWalletStore.getState().setWcReady(true);
     syncSessions();
+    Object.values(kit.getPendingSessionProposals()).forEach(p => onSessionProposal({ id: p.id, params: p }));
+    kit.getPendingSessionRequests().forEach(onSessionRequest);
     return kit;
   })();
 
@@ -114,46 +123,46 @@ export async function initWalletKit(projectId: string) {
   }
 }
 
-function onSessionProposal(proposal: WalletKitTypes.SessionProposal) {
-  useWalletStore.getState().setPendingProposal({
+function syncPending() {
+  const proposal = proposals[0];
+  const event = requests[0];
+  const store = useWalletStore.getState();
+  const namespaces = proposal ? [...Object.values(proposal.params.optionalNamespaces ?? {}), ...Object.values(proposal.params.requiredNamespaces)] : [];
+  store.setPendingProposal(proposal ? {
     id: proposal.id,
-    name: proposal.params.proposer.metadata.name,
-    url: proposal.params.proposer.metadata.url,
-    description: proposal.params.proposer.metadata.description,
-    icons: proposal.params.proposer.metadata.icons ?? [],
-  });
-  // Keep raw proposal accessible via walletKit
-  (globalThis as unknown as { __wcProposal?: WalletKitTypes.SessionProposal }).__wcProposal =
-    proposal;
+    ...proposal.params.proposer.metadata,
+    chains: [...new Set(namespaces.flatMap(n => n.chains ?? []))],
+    methods: [...new Set(namespaces.flatMap(n => n.methods))],
+    validation: proposal.verifyContext?.verified?.validation,
+  } : null);
+  const peer = event ? walletKit?.getActiveSessions()[event.topic]?.peer.metadata : undefined;
+  store.setPendingRequest(event ? {
+    id: event.id, topic: event.topic, method: event.params.request.method,
+    params: event.params.request.params as unknown[], chainId: event.params.chainId,
+    dappName: peer?.name, dappUrl: peer?.url,
+  } : null);
+}
+
+function onSessionProposal(proposal: Proposal) {
+  if (!proposals.some(p => p.id === proposal.id)) proposals.push(proposal);
+  syncPending();
 }
 
 function onSessionRequest(event: WalletKitTypes.SessionRequest) {
-  const { topic, params, id } = event;
-  const sessions = walletKit?.getActiveSessions() ?? {};
-  const session = sessions[topic];
-  useWalletStore.getState().setPendingRequest({
-    id,
-    topic,
-    method: params.request.method,
-    params: params.request.params as unknown[],
-    chainId: params.chainId,
-    dappName: session?.peer.metadata.name,
-  });
-  (globalThis as unknown as { __wcRequest?: WalletKitTypes.SessionRequest }).__wcRequest =
-    event;
+  if (!requests.some(r => r.id === event.id && r.topic === event.topic)) requests.push(event);
+  syncPending();
 }
 
 export async function pairWithUri(uri: string) {
   const kit = walletKit ?? (await initWalletKit(useWalletStore.getState().wcProjectId));
   if (!kit) throw new Error("WalletKit not ready");
-  await kit.pair({ uri: uri.trim() });
+  await kit.pair({ uri: normalizePairingUri(uri) });
 }
 
 export async function approveProposal() {
   const store = useWalletStore.getState();
   if (!store.address || !walletKit) throw new Error("Connect Burner first");
-  const proposal = (globalThis as unknown as { __wcProposal?: WalletKitTypes.SessionProposal })
-    .__wcProposal;
+  const proposal = proposals[0];
   if (!proposal) throw new Error("No pending proposal");
 
   const approvedNamespaces = buildApprovedNamespaces({
@@ -173,16 +182,15 @@ export async function approveProposal() {
     namespaces: approvedNamespaces,
   });
 
-  store.setPendingProposal(null);
-  (globalThis as unknown as { __wcProposal?: undefined }).__wcProposal = undefined;
+  proposals = proposals.filter(p => p.id !== proposal.id);
+  syncPending();
   syncSessions();
   store.setStatusMessage(`Connected to ${proposal.params.proposer.metadata.name}`);
 }
 
 export async function rejectProposal() {
   if (!walletKit) return;
-  const proposal = (globalThis as unknown as { __wcProposal?: WalletKitTypes.SessionProposal })
-    .__wcProposal;
+  const proposal = proposals[0];
   if (!proposal) {
     useWalletStore.getState().setPendingProposal(null);
     return;
@@ -191,16 +199,19 @@ export async function rejectProposal() {
     id: proposal.id,
     reason: getSdkError("USER_REJECTED"),
   });
-  useWalletStore.getState().setPendingProposal(null);
-  (globalThis as unknown as { __wcProposal?: undefined }).__wcProposal = undefined;
+  proposals = proposals.filter(p => p.id !== proposal.id);
+  syncPending();
 }
 
 export async function disconnectWcSession(topic: string) {
   if (!walletKit) return;
+  if (responding) throw new Error("Wait for the current request to finish before disconnecting.");
   await walletKit.disconnectSession({
     topic,
     reason: getSdkError("USER_DISCONNECTED"),
   });
+  requests = requests.filter(r => r.topic !== topic);
+  syncPending();
   syncSessions();
 }
 
@@ -212,13 +223,19 @@ export async function approveRequest(pin?: string) {
     throw new Error("Nothing to approve");
   }
 
-  const event = (globalThis as unknown as { __wcRequest?: WalletKitTypes.SessionRequest })
-    .__wcRequest;
+  const event = requests[0];
   if (!event) throw new Error("Missing session request");
 
-  if (pin) session.burner.setPassword(pin);
+  if (responding) throw new Error("A request is already being processed.");
+  responding = true;
+  let executed = false;
 
   try {
+    validateRequest(walletKit.getActiveSessions()[pending.topic], session.address, pending.chainId, pending.method, pending.params);
+    if (SIGNING_METHODS.includes(pending.method)) {
+      if (!pin) throw new Error("Enter your Burner PIN to sign.");
+      session.burner.setPassword(pin);
+    }
     const result = await handleRpc(
       session,
       store.chainKey,
@@ -226,12 +243,17 @@ export async function approveRequest(pin?: string) {
       pending.params,
       pending.chainId
     );
+    executed = true;
     await walletKit.respondSessionRequest({
       topic: pending.topic,
       response: { id: pending.id, jsonrpc: "2.0", result },
     });
-    store.setStatusMessage(`Signed ${pending.method}`);
+    if (pending.method === "wallet_switchEthereumChain" || pending.method === "wallet_addEthereumChain") {
+      await walletKit.emitSessionEvent({ topic: pending.topic, chainId: pending.chainId!, event: { name: "chainChanged", data: useWalletStore.getState().chainId() } });
+    }
+    store.setStatusMessage(`Approved ${pending.method}`);
   } catch (e) {
+    if (executed) throw new Error("The request completed, but delivery to the dapp was interrupted. Check the dapp and transaction history before trying again.");
     const message = e instanceof Error ? e.message : "Request failed";
     await walletKit.respondSessionRequest({
       topic: pending.topic,
@@ -243,12 +265,16 @@ export async function approveRequest(pin?: string) {
     });
     throw e;
   } finally {
-    store.setPendingRequest(null);
-    (globalThis as unknown as { __wcRequest?: undefined }).__wcRequest = undefined;
+    responding = false;
+    store.setPin("");
+    if (SIGNING_METHODS.includes(pending.method)) session.burner.setPassword("");
+    requests = requests.filter(r => !(r.id === pending.id && r.topic === pending.topic));
+    syncPending();
   }
 }
 
 export async function rejectRequest() {
+  if (responding) return;
   const store = useWalletStore.getState();
   const pending = store.pendingRequest;
   if (!walletKit || !pending) {
@@ -263,8 +289,8 @@ export async function rejectRequest() {
       error: { code: 5000, message: "User rejected." },
     },
   });
-  store.setPendingRequest(null);
-  (globalThis as unknown as { __wcRequest?: undefined }).__wcRequest = undefined;
+  requests = requests.filter(r => !(r.id === pending.id && r.topic === pending.topic));
+  syncPending();
 }
 
 async function handleRpc(
@@ -274,7 +300,7 @@ async function handleRpc(
   params: unknown[],
   requestChainId?: string
 ): Promise<unknown> {
-  const account = await getBurnerViemAccount(session);
+  const account = SIGNING_METHODS.includes(method) ? await getBurnerViemAccount(session) : null;
   const requestedId = parseEip155ChainId(requestChainId);
   const activeKey =
     requestedId != null && isSupportedChainId(requestedId)
@@ -296,18 +322,12 @@ async function handleRpc(
           ? (params[1] as string)
           : (raw as string);
       const decoded = decodePersonalSignMessage(message);
-      if (!account.signMessage) throw new Error("Cannot sign");
+      if (!account?.signMessage) throw new Error("Cannot sign");
       return account.signMessage({
         message: isProbablyHexMessage(message)
           ? { raw: message as Hex }
           : decoded,
       });
-    }
-
-    case "eth_sign": {
-      const data = params[1] as Hex;
-      if (!account.signMessage) throw new Error("Cannot sign");
-      return account.signMessage({ message: { raw: data } });
     }
 
     case "eth_signTypedData":
@@ -320,13 +340,13 @@ async function handleRpc(
           : params[0];
       const data =
         typeof typed === "string" ? JSON.parse(typed) : (typed as object);
-      if (!account.signTypedData) throw new Error("Cannot sign typed data");
+      if (!account?.signTypedData) throw new Error("Cannot sign typed data");
       return account.signTypedData(data as never);
     }
 
     case "eth_signTransaction": {
       const tx = normalizeWcTx(params[0] as Record<string, unknown>);
-      if (!account.signTransaction) throw new Error("Cannot sign tx");
+      if (!account?.signTransaction) throw new Error("Cannot sign tx");
       return account.signTransaction({
         ...tx,
         chainId: chain.id,
@@ -377,14 +397,21 @@ async function handleRpc(
     }
 
     default:
-      void getPublicClient(chainKey);
-      void getSupportedChain(chainKey);
       throw new Error(`Unsupported method: ${method}`);
   }
 }
 
 function isProbablyHexMessage(message: string) {
   return /^0x[0-9a-fA-F]+$/.test(message);
+}
+
+export async function disconnectAllSessions() {
+  if (!walletKit) return;
+  if (responding) throw new Error("Wait for the current request to finish before disconnecting.");
+  for (const topic of Object.keys(walletKit.getActiveSessions())) await disconnectWcSession(topic);
+  while (proposals.length) await rejectProposal();
+  requests = [];
+  syncPending();
 }
 
 export function getWalletKit() {

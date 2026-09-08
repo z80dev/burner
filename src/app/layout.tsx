@@ -16,9 +16,10 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "RH Burner OS — Burner wallet for ETH, Base, Arbitrum & RH",
+  title: "Burner — Your card, connected",
   description:
-    "Use your burner.pro hardware wallet on Ethereum, Base, Arbitrum, and Robinhood Chain. ENS resolution and Safe.global via WalletConnect.",
+    "Use your burner.pro hardware wallet on Ethereum, Base, Arbitrum, and Robinhood Chain. Connect to dapps with WalletConnect. Tap your card to sign.",
+  referrer: "no-referrer",
   icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/icon.svg` },
   metadataBase: new URL("https://z80.wtf/burner"),
 };
