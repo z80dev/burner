@@ -50,6 +50,7 @@ export function WalletConnectPanel() {
   }, [wcProjectId, retry]);
 
   async function action(fn: () => Promise<unknown>) {
+    setNotice(null);
     setApproving(true);
     setActionError(null);
     try { await fn(); }
