@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CameraScanner } from "@/components/camera-scanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Link2, Loader2, Unplug, Check, X, ArrowUpRight, ClipboardPaste, ImageUp } from "lucide-react";
+import { Link2, Loader2, Unplug, Check, X, ArrowUpRight, ClipboardPaste, Camera } from "lucide-react";
 import { useWalletStore, hydrateWcProjectId } from "@/lib/store";
 import { initWalletKit, pairWithUri, approveProposal, rejectProposal, approveRequest, rejectRequest, disconnectWcSession, getWalletKit } from "@/lib/walletconnect/kit";
 import { normalizePairingUri, personalMessage, typedData, SIGNING_METHODS, validateRequest } from "@/lib/walletconnect/validation";
@@ -18,6 +19,7 @@ function networkName(id: string) {
 
 export function WalletConnectPanel() {
   const { address, wcProjectId, setWcProjectId, wcReady, wcUri, setWcUri, wcSessions, pendingProposal, pendingRequest, pin, setPin } = useWalletStore();
+  const [scanning, setScanning] = useState(false);
   const [pairing, setPairing] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -77,18 +79,6 @@ export function WalletConnectPanel() {
     catch (e) { setActionError(e instanceof Error && e.name !== "NotAllowedError" ? e.message : "Paste the link into the field below."); }
   }
 
-  async function readQr(file?: File) {
-    if (!file) return;
-    try {
-      if (file.size > 15 * 1024 * 1024) throw new Error("Choose an image smaller than 15 MB.");
-      const { default: QrScanner } = await import("qr-scanner");
-      const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
-      setWcUri(normalizePairingUri(result.data));
-      setActionError(null);
-      setNotice("QR code read. Connect when you’re ready.");
-    } catch (e) { setActionError(e instanceof Error ? e.message : "No WalletConnect QR code found. Try a clear screenshot of the dapp’s QR code."); }
-  }
-
   const needsSignature = !!pendingRequest && SIGNING_METHODS.includes(pendingRequest.method);
   let requestError: string | null = null;
   let requestPreview = "";
@@ -120,7 +110,7 @@ export function WalletConnectPanel() {
         <div className="space-y-5 text-sm text-white/60">
           <p>Connect your Burner to Safe and other WalletConnect dapps. Every signature still needs your card.</p>
           <ol className="space-y-4">
-            {["Choose WalletConnect in the dapp’s Connect wallet menu.", "Copy its connection link, or save its QR code as an image.", "Add it here, tap your Burner, and review the connection."].map((step, i) => (
+            {["Choose WalletConnect in the dapp’s Connect wallet menu.", "Scan its QR code with your camera, or copy its connection link.", "Add it here, tap your Burner, and review the connection."].map((step, i) => (
               <li key={step} className="flex gap-3"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/5 text-xs text-emerald-300">{i + 1}</span><span>{step}</span></li>
             ))}
           </ol>
@@ -130,11 +120,14 @@ export function WalletConnectPanel() {
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => void pasteLink()}><ClipboardPaste className="size-4" />Paste link</Button>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 focus-within:ring-2 focus-within:ring-emerald-400">
-              <ImageUp className="size-4" />Import QR image
-              <input aria-label="Import WalletConnect QR image" type="file" accept="image/*" className="sr-only" onChange={e => { void readQr(e.target.files?.[0]); e.target.value = ""; }} />
-            </label>
+            <Button variant="outline" disabled={scanning || pairing} onClick={() => { setActionError(null); setNotice(null); setScanning(true); }}><Camera className="size-4" />Scan QR code</Button>
           </div>
+          {scanning && <CameraScanner onClose={() => setScanning(false)} onScan={uri => {
+            setWcUri(uri);
+            setScanning(false);
+            setActionError(null);
+            setNotice("QR code scanned. Connect when you’re ready.");
+          }} />}
           <label className="block space-y-2">
             <span className="text-sm text-white/65">Connection link</span>
             <Textarea placeholder="wc:… or a WalletConnect link" value={wcUri} onChange={e => setWcUri(e.target.value)} autoComplete="off" spellCheck={false} className="min-h-28 resize-y break-all border-white/15 bg-black/30 font-mono text-xs text-white" />

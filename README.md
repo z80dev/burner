@@ -11,7 +11,7 @@ Private keys never leave the Burner secure element. Signing uses the same LibBur
 - Connect Burner via **phone NFC** (iPhone Safari / Android Chrome) or **HaLo Bridge** (desktop USB reader)
 - View native balances and send **MON on Monad** or **ETH on Ethereum mainnet, Base, Arbitrum, and Robinhood Chain** (mainnet `4663` / testnet `46630`)
 - **ENS** forward resolution for send (`vitalik.eth`) and reverse lookup on the connected address
-- **WalletConnect** pairing — paste a connection link, import a QR screenshot, or open a wallet deep link
+- **WalletConnect** pairing — paste a connection link, scan a QR code with your camera, or open a wallet deep link
 - Review full signing payloads, requested networks, app identity, and active connections
 - Restore pending proposals and requests after reload; queue requests without replacing the one under review
 - Approve session proposals and sign `personal_sign` / typed data / transactions with a card tap + PIN
@@ -45,8 +45,8 @@ Android Chrome uses WebNFC. Neither phone flow requires HaLo Bridge or a hosted 
 ## Connect to a dapp
 
 1. Open the dapp (for example [Safe](https://app.safe.global)) and choose **Connect wallet → WalletConnect**.
-2. Copy the connection link or save a screenshot of the QR code.
-3. In Burner, paste the link or choose **Import QR image**, then **Connect dapp**. QR images are decoded locally in the browser.
+2. Show the dapp’s QR code on another screen, or copy its connection link.
+3. In Burner, choose **Scan QR code** and allow camera access, or paste the link, then **Connect dapp**. The scanner uses your camera (rear camera preferred on phones), decodes locally, and stops after a successful scan or when closed. If permission is denied, allow camera access in site settings or use the paste-link option.
 4. Tap your Burner card if it is not already connected, then review the app URL, requested networks, and permissions. Choose **Approve connection**.
 5. Keep this tab available. When the dapp requests a signature, review the complete message or transaction, enter your PIN, and tap your card. Account queries and network changes do not require a PIN or signature.
 6. Use **Connected apps** to disconnect a dapp. Disconnecting the card also disconnects its WalletConnect sessions.
