@@ -1,6 +1,6 @@
 # Burner
 
-A BurnerOS-style wallet for [Burner](https://burner.pro) Ethereum hardware cards on **Ethereum, Base, Arbitrum, and Robinhood Chain**, with WalletConnect for [Safe](https://app.safe.global) and other EVM dapps.
+A BurnerOS-style wallet for [Burner](https://burner.pro) Ethereum hardware cards on **Ethereum mainnet, Base, Arbitrum, Monad, and Robinhood Chain**, with WalletConnect for [Safe](https://app.safe.global) and other EVM dapps.
 
 **Live:** [https://z80.wtf/burner](https://z80.wtf/burner)
 
@@ -9,7 +9,7 @@ Private keys never leave the Burner secure element. Signing uses the same LibBur
 ## Features
 
 - Connect Burner via **phone NFC** (iPhone Safari / Android Chrome) or **HaLo Bridge** (desktop USB reader)
-- View ETH balance and send on **Ethereum**, **Base**, **Arbitrum**, and **Robinhood Chain** (mainnet `4663` / testnet `46630`)
+- View native balances and send **MON on Monad** or **ETH on Ethereum mainnet, Base, Arbitrum, and Robinhood Chain** (mainnet `4663` / testnet `46630`)
 - **ENS** forward resolution for send (`vitalik.eth`) and reverse lookup on the connected address
 - **WalletConnect** pairing — paste a connection link, import a QR screenshot, or open a wallet deep link
 - Review full signing payloads, requested networks, app identity, and active connections
@@ -92,6 +92,7 @@ npx serve .preview
 | Ethereum | 1 | `https://ethereum.reth.rs/rpc` | [Etherscan](https://etherscan.io) |
 | Base | 8453 | `https://mainnet.base.org` | [Basescan](https://basescan.org) |
 | Arbitrum One | 42161 | `https://arb1.arbitrum.io/rpc` | [Arbiscan](https://arbiscan.io) |
+| Monad | 143 | `https://rpc.monad.xyz` | [Monadscan](https://monadscan.com) |
 | Robinhood Chain | 4663 | `https://rpc.mainnet.chain.robinhood.com` | [Blockscout](https://robinhoodchain.blockscout.com) |
 | Robinhood Testnet | 46630 | `https://rpc.testnet.chain.robinhood.com` | [Testnet explorer](https://explorer.testnet.chain.robinhood.com) |
 

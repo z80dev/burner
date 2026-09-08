@@ -125,7 +125,7 @@ export function WalletConnectPanel() {
             ))}
           </ol>
           <a href="https://app.safe.global" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-300 hover:underline">Open Safe <ArrowUpRight className="size-4" /></a>
-          <p className="text-xs text-white/40">Ethereum · Base · Arbitrum · Robinhood<br />Robinhood Testnet is also supported.</p>
+          <p className="text-xs text-white/40">Ethereum mainnet · Base · Arbitrum · Monad · Robinhood<br />Robinhood Testnet is also supported.</p>
         </div>
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">

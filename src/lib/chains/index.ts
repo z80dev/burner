@@ -1,4 +1,4 @@
-import { type Chain, arbitrum, base, mainnet } from "viem/chains";
+import { type Chain, arbitrum, base, mainnet, monad } from "viem/chains";
 import {
   ROBINHOOD_CHAIN_ID,
   ROBINHOOD_TESTNET_CHAIN_ID,
@@ -10,6 +10,7 @@ export type ChainKey =
   | "ethereum"
   | "base"
   | "arbitrum"
+  | "monad"
   | "robinhood"
   | "robinhood-testnet";
 
@@ -25,7 +26,7 @@ export const SUPPORTED_CHAINS: readonly SupportedChain[] = [
     key: "ethereum",
     chain: mainnet,
     shortName: "ETH",
-    label: "Ethereum",
+    label: "Ethereum Mainnet",
   },
   {
     key: "base",
@@ -38,6 +39,12 @@ export const SUPPORTED_CHAINS: readonly SupportedChain[] = [
     chain: arbitrum,
     shortName: "Arb",
     label: "Arbitrum",
+  },
+  {
+    key: "monad",
+    chain: monad,
+    shortName: "MON",
+    label: "Monad",
   },
   {
     key: "robinhood",

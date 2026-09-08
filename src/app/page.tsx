@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { NetworkSelect } from "@/components/network-select";
 import { ConnectPanel } from "@/components/connect-panel";
 import { WalletDashboard } from "@/components/wallet-dashboard";
 import { WalletConnectPanel } from "@/components/wallet-connect-panel";
@@ -61,7 +62,8 @@ export default function HomePage() {
             <div className="space-y-7">
               <p className="text-xs font-medium uppercase tracking-[0.24em] text-emerald-300">A wallet built around your card</p>
               <h1 className="font-display text-5xl font-semibold leading-[1.05] tracking-tight text-white md:text-7xl">Tap in.<br /><span className="text-emerald-300">Go anywhere.</span></h1>
-              <p className="max-w-lg text-lg leading-relaxed text-white/60">Your Burner card, connected to Ethereum, Base, Arbitrum, and Robinhood. Keep your keys in your pocket. Bring your wallet to your favorite dapps.</p>
+              <p className="max-w-lg text-lg leading-relaxed text-white/60">Your Burner card, connected to Ethereum mainnet, Base, Arbitrum, Monad, and Robinhood. Keep your keys in your pocket. Bring your wallet to your favorite dapps.</p>
+              <NetworkSelect />
               <ConnectPanel />
               <a href="#dapps" className="inline-flex items-center gap-2 text-sm text-emerald-300 hover:underline">Connect to a dapp <ArrowDownRight className="size-4" /></a>
             </div>
@@ -105,7 +107,7 @@ export default function HomePage() {
 
       <footer className="relative z-10 border-t border-white/5 px-5 py-6 text-center text-xs text-white/30 md:px-8">
         Keys stay on your Burner. Not affiliated with Robinhood Markets or Arx —
-        built for Ethereum, Base, Arbitrum, Robinhood Chain + Burner cards.
+        built for Ethereum mainnet, Base, Arbitrum, Monad, Robinhood Chain + Burner cards.
       </footer>
     </div>
   );

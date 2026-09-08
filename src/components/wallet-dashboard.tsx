@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NetworkSelect } from "@/components/network-select";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +11,10 @@ import { isAddress } from "viem";
 import { useWalletStore, hydrateChainKey } from "@/lib/store";
 import { fetchEthBalance, formatEth, sendEth } from "@/lib/rpc";
 import {
-  SUPPORTED_CHAINS,
   explorerAddressUrl,
   explorerTxUrl,
   getSupportedChain,
   safeUrlForChain,
-  type ChainKey,
 } from "@/lib/chains";
 import { looksLikeEnsName, resolveRecipient } from "@/lib/ens";
 
@@ -25,7 +24,6 @@ export function WalletDashboard() {
     ensName,
     session,
     chainKey,
-    setChainKey,
     balanceWei,
     balanceLoading,
     setBalance,
@@ -176,29 +174,14 @@ export function WalletDashboard() {
               {balanceLoading && balanceWei === null
                 ? "…"
                 : formatEth(balanceWei)}
-              <span className="ml-2 text-2xl text-white/40">ETH</span>
+              <span className="ml-2 text-2xl text-white/40">{chain.chain.nativeCurrency.symbol}</span>
             </h2>
           </div>
           <p className="mt-2 text-sm text-white/45">
             on {chain.label} · ID {chainId()}
           </p>
         </div>
-        <label className="space-y-1.5">
-          <span className="block text-xs uppercase tracking-wider text-white/45">
-            Network
-          </span>
-          <select
-            value={chainKey}
-            onChange={(e) => setChainKey(e.target.value as ChainKey)}
-            className="h-9 min-w-[11rem] rounded-lg border border-white/20 bg-black/40 px-3 text-sm text-white outline-none focus-visible:border-emerald-400/60"
-          >
-            {SUPPORTED_CHAINS.map((c) => (
-              <option key={c.key} value={c.key} className="bg-zinc-950">
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <NetworkSelect />
       </div>
 
       <Tabs defaultValue="receive" className="w-full">
@@ -215,7 +198,7 @@ export function WalletDashboard() {
             </div>
             <div className="min-w-0 flex-1 space-y-3">
               <p className="text-sm text-white/55">
-                Deposit ETH on {chain.label} to this Burner address.
+                Deposit {chain.chain.nativeCurrency.symbol} on {chain.label} to this Burner address.
               </p>
               {ensName && (
                 <p className="font-display text-lg text-emerald-300">{ensName}</p>
@@ -269,7 +252,7 @@ export function WalletDashboard() {
             </label>
             <label className="space-y-1.5">
               <span className="text-xs uppercase tracking-wider text-white/45">
-                Amount (ETH)
+                Amount ({chain.chain.nativeCurrency.symbol})
               </span>
               <Input
                 placeholder="0.01"

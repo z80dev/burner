@@ -82,7 +82,7 @@ export async function initWalletKit(projectId: string) {
       metadata: {
         name: "Burner",
         description:
-          "Burner hardware wallet for Ethereum, Base, Arbitrum, and Robinhood Chain — connect to Safe and other dApps",
+          "Burner hardware wallet for Ethereum mainnet, Base, Arbitrum, Monad, and Robinhood Chain — connect to Safe and other dApps",
         url: appUrl,
         icons: [`${appUrl}/icon.svg`],
       },

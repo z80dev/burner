@@ -107,6 +107,7 @@ function loadChainKey(): ChainKey {
     stored === "ethereum" ||
     stored === "base" ||
     stored === "arbitrum" ||
+    stored === "monad" ||
     stored === "robinhood" ||
     stored === "robinhood-testnet"
   ) {
